@@ -42,3 +42,4 @@ All in `lib/config.js`:
 
 Player values come from FantasyCalc (10-team, PPR, 1QB or Superflex, read from your
 Sleeper settings), refreshed daily. If FantasyCalc is down, the last good copy is used.
+
