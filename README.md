@@ -1,8 +1,12 @@
-# CCFF Trade Center (Step 1: team directions)
+# CCFF Trade Center
 
-Shows every team's win-now strength, long-term value, core age, thin and deep
-positions, and future draft picks. Managers declare Contending, Retooling, or
-Rebuilding with a PIN, and each declaration posts to Discord.
+- **Trade block** (home page, no login): every player and pick on the block, who listed
+  it, their direction, what they want, and who's interested. Hitting "I'm interested"
+  posts to Discord.
+- **Teams**: every roster sized up (win-now, long-term, core age, thin spots, picks).
+- **My team** (log in with your PIN): your roster and picks, add or remove things from
+  the block, declare your direction, trade ideas, and a trade calculator that grades
+  a deal for both sides before you send it in Sleeper.
 
 ## Setup (one time, about 10 minutes)
 
@@ -30,6 +34,8 @@ All in `lib/config.js`:
 - `ROOKIE_ROUNDS`: rounds in your rookie draft (default 4)
 - `COOLDOWN_DAYS`: wait time between direction switches (default 21)
 
+Grade weights and cutoffs live in `lib/grade.js`.
+
 ## How the numbers work
 
 - **Win-now roster**: best possible starting lineup by redraft value.
@@ -40,6 +46,22 @@ All in `lib/config.js`:
 - **Data's suggestion**: 75% win-now roster rank, 25% record once everyone has
   played 3 games. Top 3 = contender, bottom 3 = rebuilder, the rest = stuck in the middle.
 
+## How trade grades work
+
+For each side, compare the team before and after the trade:
+
+- **Win-now lineup**: redraft value of the best starting lineup (bench adds nothing).
+- **Long-term core**: dynasty value of the top 14 players (1.75x starting slots) plus
+  all picks. Depth past that adds nothing, so 3-for-1 packages don't win by quantity.
+  From a rebuilder's side, players over 25 lose 7% of value per year (down to half).
+- **Weighted score** by direction: contending 70% win-now / 30% long-term,
+  retooling 50/50, rebuilding 30/70. Undeclared teams use the data's suggestion.
+- **Letter grade** from the weighted % change: A+ ≥ 5, A ≥ 3, A- ≥ 2, B+ ≥ 1,
+  B ≥ -1, B- ≥ -2, C+ ≥ -3, C ≥ -4.5, D ≥ -6.5, F below.
+
+Trade ideas only show deals that help you (+0.5 or better) and grade B- or better
+for the other team. Unpriced picks are estimated from where picks usually trade
+relative to players.
+
 Player values come from FantasyCalc (10-team, PPR, 1QB or Superflex, read from your
 Sleeper settings), refreshed daily. If FantasyCalc is down, the last good copy is used.
-

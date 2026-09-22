@@ -1,29 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getLeague } from './api.js';
-import { DIRECTIONS, shortDate } from './labels.js';
-import Board from './Board.jsx';
-import TeamCard from './TeamCard.jsx';
-import DeclareModal from './DeclareModal.jsx';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from './api.js';
+import { getSession, clearSession } from './session.js';
+import Overview from './Overview.jsx';
+import Teams from './Teams.jsx';
+import MyTeam from './MyTeam.jsx';
+import Login from './Login.jsx';
 import Commish from './Commish.jsx';
 
-const SORTS = {
-  winNow: { label: 'Win-now roster', fn: (a, b) => a.ranks.winNow - b.ranks.winNow },
-  longTerm: { label: 'Long-term value', fn: (a, b) => a.ranks.longTerm - b.ranks.longTerm },
-  youth: { label: 'Youngest core', fn: (a, b) => (a.ranks.youth ?? 99) - (b.ranks.youth ?? 99) },
-  record: { label: 'Record', fn: (a, b) => b.record.w - a.record.w || b.record.pf - a.record.pf },
-};
+function parseRoute() {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  if (hash.startsWith('commish')) return 'commish';
+  if (hash.startsWith('teams')) return 'teams';
+  if (hash.startsWith('team')) return 'team';
+  return 'block';
+}
 
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [route, setRoute] = useState(window.location.hash);
-  const [declaring, setDeclaring] = useState(null);
+  const [route, setRoute] = useState(parseRoute);
+  const [session, setSession] = useState(getSession);
   const [toast, setToast] = useState(null);
-  const [sort, setSort] = useState('winNow');
 
   const load = useCallback(
-    () =>
-      getLeague()
+    (fresh = false) =>
+      api
+        .league(fresh)
         .then((d) => {
           setData(d);
           setError(null);
@@ -32,12 +34,32 @@ export default function App() {
     [],
   );
 
+  const logout = useCallback(() => {
+    api.logout().catch(() => {});
+    clearSession();
+    setSession(null);
+  }, []);
+
+  // Any 401 from a logged-in action means the login is no longer good.
+  const handleError = useCallback(
+    (err) => {
+      if (err.status === 401) {
+        logout();
+        setToast(`${err.message}`);
+      } else {
+        setToast(err.message);
+      }
+    },
+    [logout],
+  );
+
   useEffect(() => {
     load();
-    const onHash = () => setRoute(window.location.hash);
+    if (getSession()) api.me().catch((err) => err.status === 401 && logout());
+    const onHash = () => setRoute(parseRoute());
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, [load]);
+  }, [load, logout]);
 
   useEffect(() => {
     if (!toast) return;
@@ -45,100 +67,68 @@ export default function App() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const sorted = useMemo(() => (data ? [...data.teams].sort(SORTS[sort].fn) : []), [data, sort]);
-
-  function handleDeclared({ team, discord }, direction) {
-    setDeclaring(null);
-    if (team) {
-      setData((d) => ({ ...d, teams: d.teams.map((t) => (t.rosterId === team.rosterId ? team : t)) }));
-    } else {
-      load();
-    }
-    const label = DIRECTIONS[direction].label;
-    setToast(
-      discord.posted
-        ? `Declared ${label}. Posted to Discord.`
-        : `Declared ${label}. The Discord post didn’t go through: ${discord.reason}.`,
-    );
-  }
-
-  if (route === '#commish') return <Commish data={data} reload={load} />;
+  const myTeam = data && session ? data.teams.find((t) => t.rosterId === session.rosterId) : null;
+  const shared = { data, session, myTeam, reload: () => load(true), notify: setToast, onError: handleError };
 
   return (
-    <div className="wrap">
-      <header className="masthead">
-        <h1>Trade Center</h1>
-        <p>
-          {data ? `${data.league.name}, ${data.league.season} season.` : 'Loading your league…'} Declare where your
-          team is headed, then go find a deal.
-        </p>
-      </header>
-
-      {error && (
-        <p className="banner banner-error" role="alert">
-          Couldn’t load league data: {error} Refresh the page to try again.
-        </p>
-      )}
-
-      {data && !data.valuesOk && (
-        <p className="banner">
-          Player values are unavailable right now, so ranks and thin spots are hidden. Everything else still works.
-        </p>
-      )}
-
-      {data && (
-        <>
-          <Board teams={data.teams} />
-
-          <div className="section-head">
-            <h2>Teams</h2>
-            <label className="sort">
-              <span>Sort by</span>
-              <select value={sort} onChange={(e) => setSort(e.target.value)}>
-                {Object.entries(SORTS).map(([key, s]) => (
-                  <option key={key} value={key}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+    <>
+      <nav className="nav" aria-label="Main">
+        <div className="nav-inner">
+          <a href="#/" className="brand">CCFF Trade Center</a>
+          <div className="nav-links">
+            <a href="#/" aria-current={route === 'block' ? 'page' : undefined}>Trade block</a>
+            <a href="#/teams" aria-current={route === 'teams' ? 'page' : undefined}>Teams</a>
+            <a href="#/team" aria-current={route === 'team' ? 'page' : undefined}>
+              {myTeam ? 'My team' : 'Log in'}
+            </a>
           </div>
+          {myTeam && (
+            <div className="nav-user">
+              <span>{myTeam.manager}</span>
+              <button className="link-btn" onClick={logout}>Log out</button>
+            </div>
+          )}
+        </div>
+      </nav>
 
-          <div className="grid">
-            {sorted.map((team) => (
-              <TeamCard
-                key={team.rosterId}
-                team={team}
-                teamCount={data.league.teamCount}
-                seasons={data.pickSeasons}
-                onDeclare={setDeclaring}
-              />
-            ))}
-          </div>
+      <main className="wrap">
+        {error && (
+          <p className="banner banner-error" role="alert">
+            Couldn’t load league data: {error} Refresh the page to try again.
+          </p>
+        )}
+        {data && !data.valuesOk && (
+          <p className="banner">Player values are unavailable right now, so ranks, grades and trade ideas are off. Everything else works.</p>
+        )}
 
+        {route === 'commish' ? (
+          <Commish data={data} reload={() => load(true)} />
+        ) : !data ? (
+          !error && <p className="loading">Pulling rosters from Sleeper…</p>
+        ) : route === 'teams' ? (
+          <Teams data={data} />
+        ) : route === 'team' ? (
+          myTeam ? <MyTeam {...shared} team={myTeam} /> : <Login data={data} onLogin={setSession} />
+        ) : (
+          <Overview {...shared} />
+        )}
+
+        {data && (
           <footer className="site-foot">
             <p>
               {data.values.fetchedAt
-                ? `Player values from FantasyCalc, updated ${shortDate(Date.parse(data.values.fetchedAt))}${
+                ? `Player values from FantasyCalc, updated ${new Date(data.values.fetchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${
                     data.values.stale ? ' (couldn’t refresh today, showing the last good copy)' : ''
                   }.`
                 : 'Player values from FantasyCalc.'}{' '}
-              Gold pick chips were acquired from another team.
+              Unpriced draft picks use estimated values.
             </p>
-            <a href="#commish">Commissioner tools</a>
+            <a href="#/commish">Commissioner tools</a>
           </footer>
-        </>
-      )}
+        )}
+      </main>
 
-      {!data && !error && <p className="loading">Pulling rosters from Sleeper…</p>}
-
-      {declaring && <DeclareModal team={declaring} cooldownDays={data?.league.cooldownDays ?? 21} onClose={() => setDeclaring(null)} onDeclared={handleDeclared} />}
-
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
-    </div>
+      {toast && <div className="toast" role="status">{toast}</div>}
+    </>
   );
 }

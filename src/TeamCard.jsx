@@ -1,6 +1,7 @@
-import { DIRECTIONS, SUGGESTED, POSITIONS, ordinal, shortDate, age } from './labels.js';
+import { DIRECTIONS, SUGGESTED, ordinal, age } from './labels.js';
+import { StatRow, PositionStrip } from './TeamProfile.jsx';
 
-export default function TeamCard({ team, teamCount, seasons, onDeclare }) {
+export default function TeamCard({ team, teamCount, seasons }) {
   const tone = team.direction || 'undeclared';
   const record = `${team.record.w}–${team.record.l}${team.record.t ? `–${team.record.t}` : ''}`;
 
@@ -27,41 +28,8 @@ export default function TeamCard({ team, teamCount, seasons, onDeclare }) {
           )}
         </div>
 
-        <dl className="stats">
-          <div>
-            <dt>Win-now roster</dt>
-            <dd>#{team.ranks.winNow}</dd>
-          </div>
-          <div>
-            <dt>Long-term value</dt>
-            <dd>#{team.ranks.longTerm}</dd>
-          </div>
-          <div>
-            <dt>Core age</dt>
-            <dd>{team.coreAge ? team.coreAge.toFixed(1) : '–'}</dd>
-          </div>
-        </dl>
-
-        <div>
-          <p className="subhead">Starters by position, league rank</p>
-          <ul className="pos-strip">
-            {POSITIONS.map((pos) => {
-              const p = team.positions[pos];
-              const state = p.thin ? 'thin' : p.deep ? 'deep' : '';
-              return (
-                <li
-                  key={pos}
-                  className={`pos ${state}`}
-                  title={`${pos} starters rank ${ordinal(p.starterRank)} of ${teamCount}; bench depth ranks ${ordinal(p.depthRank)}`}
-                >
-                  <span className="pos-name">{pos}</span>
-                  <span className="pos-rank">#{p.starterRank}</span>
-                  {state && <span className="pos-tag">{p.thin ? 'Thin' : 'Deep bench'}</span>}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <StatRow team={team} />
+        <PositionStrip team={team} teamCount={teamCount} />
 
         <div>
           <p className="subhead">Most valuable players</p>
@@ -90,7 +58,7 @@ export default function TeamCard({ team, teamCount, seasons, onDeclare }) {
                   const own = p.fromRosterId === team.rosterId;
                   const label = own ? `Own ${ordinal(p.round)}` : `${ordinal(p.round)} from ${p.fromManager}`;
                   return (
-                    <span key={`${p.round}-${p.fromRosterId}`} className={own ? 'chip' : 'chip chip-acquired'} title={label} aria-label={label}>
+                    <span key={p.key} className={own ? 'chip' : 'chip chip-acquired'} title={label} aria-label={label}>
                       {p.round}
                     </span>
                   );
@@ -99,17 +67,6 @@ export default function TeamCard({ team, teamCount, seasons, onDeclare }) {
             );
           })}
         </div>
-
-        <footer className="card-foot">
-          {team.canChangeAt ? (
-            <span className="lock-note">Can switch again {shortDate(team.canChangeAt)}</span>
-          ) : (
-            <span />
-          )}
-          <button className="btn" onClick={() => onDeclare(team)} disabled={Boolean(team.canChangeAt)}>
-            {team.direction ? 'Change direction' : 'Declare direction'}
-          </button>
-        </footer>
       </div>
     </article>
   );

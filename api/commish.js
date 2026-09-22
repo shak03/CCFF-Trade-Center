@@ -32,6 +32,7 @@ export default async function handler(req, res) {
       if (!isValidPin(pin)) throw httpError(400, 'PINs are 4–8 digits.');
       await db.hset('pins', { [rid]: hashPin(pin) });
       await db.del(`pinfail:${rid}`);
+      await db.incr(`sessver:${rid}`); // logs the team out everywhere
       return res.json({ ok: true });
     }
 

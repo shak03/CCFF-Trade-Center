@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { commishAction } from './api.js';
+import { api } from './api.js';
 import { DIRECTION_KEYS, DIRECTIONS, shortDate } from './labels.js';
 
 const randomPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0');
@@ -16,7 +16,7 @@ export default function Commish({ data, reload }) {
     setBusy(true);
     setMessage(null);
     try {
-      const result = await commishAction({ key, ...payload });
+      const result = await api.commish({ key, ...payload });
       if (success) setMessage({ ok: true, text: success });
       return result;
     } catch (err) {
@@ -35,7 +35,7 @@ export default function Commish({ data, reload }) {
 
   async function savePin(team) {
     const pin = pins[team.rosterId] || '';
-    const ok = await run({ action: 'setPin', rosterId: team.rosterId, pin }, `PIN saved for ${team.manager}. Send it to them privately.`);
+    const ok = await run({ action: 'setPin', rosterId: team.rosterId, pin }, `PIN saved for ${team.manager}. Send it to them privately. Any old login for that team is signed out.`);
     if (ok) reload();
   }
 
@@ -52,11 +52,11 @@ export default function Commish({ data, reload }) {
   }
 
   return (
-    <div className="wrap commish">
+    <div className="commish">
       <header className="masthead">
         <h1>Commissioner tools</h1>
         <p>
-          <a href="#">Back to the Trade Center</a>
+          <a href="#/">Back to the trade block</a>
         </p>
       </header>
 

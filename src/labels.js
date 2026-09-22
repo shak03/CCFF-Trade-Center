@@ -1,3 +1,5 @@
+export { ordinal } from '../lib/assets.js';
+
 export const DIRECTION_KEYS = ['contending', 'retooling', 'rebuilding'];
 
 export const DIRECTIONS = {
@@ -15,13 +17,20 @@ export const SUGGESTED = {
 
 export const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
 
-export const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
-
-export const shortDate = (ms) =>
-  new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+export const shortDate = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 export const age = (a) => (a == null ? '' : Math.floor(a));
+
+export const num = (v) => Math.round(v || 0).toLocaleString('en-US');
+
+export function timeAgo(ms) {
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+export const pct = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`;
